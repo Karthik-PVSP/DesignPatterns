@@ -1,0 +1,79 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"name":"csharp","languageName":"csharp"},{"name":"fsharp","languageName":"F#","aliases":["f#","fs"]},{"name":"html","languageName":"HTML"},{"name":"http","languageName":"HTTP"},{"name":"javascript","languageName":"JavaScript","aliases":["js"]},{"name":"mermaid","languageName":"Mermaid"},{"name":"pwsh","languageName":"PowerShell","aliases":["powershell"]},{"name":"value"}]}}
+
+#!markdown
+
+# Factory Method Design Pattern
+1. Use the factory method when you don't exactly know the types and dependencies of objects that you are going to work with.
+2. Use the factory method when you want to provide users of your library with a way to extend its internal components.
+3. Use the factory method when you want to save resources by reusing existing objects instead of rebuilding them each time.
+
+## Relation with Other Patterns
+1. Many designs will start with the factory method but will gradually evolve to the Abstract Factory, Prototype, or Builder patterns (which are more flexible or more complicated).
+
+#!csharp
+
+using System;
+
+// Abstract idea of what our products should contain
+public interface IProduct
+{
+    string Operation(string value);
+}
+
+// Concrete implementation of our products
+public class ConcreteProduct1 : IProduct
+{
+    public string Operation(string value)
+    {
+        return $"Result of ConcreteProduct1: {value ?? string.Empty}";
+    }
+}
+
+public class ConcreteProduct2 : IProduct
+{
+    public string Operation(string value)
+    {
+        return $"Result of ConcreteProduct2: {value ?? string.Empty}";
+    }
+}
+
+// Abstract Creator class
+public abstract class Creator
+{
+    // Factory method to be implemented by subclasses
+    public abstract IProduct FactoryMethod();
+
+    // Common operation that uses the product created by the factory method
+    public string SomeOperation(string value)
+    {
+        var product = FactoryMethod();
+        return $"Creator: The same creator's code has just worked with {product.Operation(value)}.";
+    }
+}
+
+// Concrete Creator 1
+public class ConcreteCreator1 : Creator
+{
+    public override IProduct FactoryMethod()
+    {
+        return new ConcreteProduct1();
+    }
+}
+
+// Concrete Creator 2
+public class ConcreteCreator2 : Creator
+{
+    public override IProduct FactoryMethod()
+    {
+        return new ConcreteProduct2();
+    }
+}
+
+// Client code
+var creator2 = new ConcreteCreator2();
+var creator1 = new ConcreteCreator1();
+
+Console.WriteLine(creator2.FactoryMethod().Operation("Calling from Creator 2"));
+Console.WriteLine(creator1.FactoryMethod().Operation("Calling from Creator 1"));
