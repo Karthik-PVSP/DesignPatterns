@@ -12,6 +12,20 @@
 ## Relation with Other Patterns
 1. Many designs will start with the factory method but will gradually evolve to the Abstract Factory, Prototype, or Builder patterns (which are more flexible or more complicated).
 
+#!markdown
+
+# Motivation
+1. Object Creation logic becomes too convoluted.
+2. Constructor is not descriptive.
+    1. Name of the constructor should be matched by name of the containing type.
+    2. Cannot overload with same sets of arguments with different names.
+    3. Can turninto optional parameter hell.
+3. Object creation ( non-piecewise, unlike builder) can be outsourced to.
+    1. Act of creation of object is outsourced A Separate function ( Factory Method).
+    2. That may exist in a separate class (Factory)
+    3. Can create hierarchy of factories with Abstract Factory.
+4. Factory: A component Responsible solely for the wholesale( not piecewise) creation of objects.
+
 #!csharp
 
 using System;
@@ -77,3 +91,262 @@ var creator1 = new ConcreteCreator1();
 
 Console.WriteLine(creator2.FactoryMethod().Operation("Calling from Creator 2"));
 Console.WriteLine(creator1.FactoryMethod().Operation("Calling from Creator 1"));
+
+#!markdown
+
+# Udemy Course
+### Factory Method
+
+#!csharp
+
+using static System.Console;
+public class Point {
+    private double x,y;
+    /*<Summary> Initializes a point from either polar or cartesion</Summary>
+    <Param name="x"> x ></param>
+    <param name="y"> y ></param>
+
+    */
+
+    // Factory method 
+    // key point the name of the factory method is not tied with class.
+    public static Point NewCartesionPoint(double x, double y){
+        return new Point(x,y);
+    }
+    public static Point NewPolarPoint(double rho,double theta){
+        return new Point(rho*Math.Cos(theta),rho*Math.Sin(theta));
+    }
+    private Point(double x,double y){
+        this.x=x;
+        this.y=y;
+    }
+    public override string ToString(){
+        return $"x:{this.x}, y:{this.x}";
+    }
+}
+
+//Client code
+var pt1=Point.NewCartesionPoint(1,2);
+WriteLine(pt1);
+var pt2=Point.NewPolarPoint(1,30);
+WriteLine(pt2);
+
+#!markdown
+
+### Asynchronous Factory Method
+> Asynchronous Invocation cannot happen eveywhere, They can happen in methods, it cannot happens in constructors Which becomes problems sometimes we want to do that.
+__How to implement this ?__
+
+#!csharp
+
+using static System.Console;
+using System.Threading.Tasks;
+public class Foo{
+    public string test{get;set;}
+    private Foo(){ // No outside client code can access the construtor
+       
+    }
+    //Actual part of the member of class who can perform asynchronous operation.
+    public async Task<Foo> InitAsync(){
+        await Task.Delay(1000);
+        return this;
+    }
+    public static Task<Foo> CreateAync(){
+        var result = new Foo();
+        result.test="Hello";
+        
+        return result.InitAsync();
+    }
+    
+} 
+// client code.
+var x=await Foo.CreateAync();
+WriteLine(x.test);
+
+#!markdown
+
+## Factory
+Separation of concerns SRP,
+Remeber that construction of object should be different that what it does.
+we can group the logic of creating points into one class or a method 
+if it's a class -> FactoryClass
+if method -> factory Method
+
+#!csharp
+
+using static System.Console;
+
+public static class PointFactory{
+      public static Point NewCartesionPoint(double x, double y){
+        return new Point(x,y);
+    }
+    public static Point NewPolarPoint(double rho,double theta){
+        return new Point(rho*Math.Cos(theta),rho*Math.Sin(theta));
+    }
+} 
+public class Point {
+    private double x,y;
+    /*<Summary> Initializes a point from either polar or cartesion</Summary>
+    <Param name="x"> x ></param>
+    <param name="y"> y ></param>
+
+    */
+
+    // Factory method 
+    // key point the name of the factory method is not tied with class.
+    // when including the factory class you need to make point method as public(drawbacks) because clients may build point using construtor 
+    public Point(double x,double y){
+        this.x=x;
+        this.y=y;
+    }
+    public override string ToString(){
+        return $"x:{this.x}, y:{this.x}";
+    }
+}
+
+//Client code
+var pt1=PointFactory.NewCartesionPoint(1,2);
+WriteLine(pt1);
+var pt2=PointFactory.NewPolarPoint(1,30);
+WriteLine(pt2);
+
+#!markdown
+
+#### Now we are going to see how to fix the public construtor for product classes
+
+#!markdown
+
+## Object Tracking and Bulk Replacement
+#### Questions:
+1) What additional benefits do fatories will provide?
+2) Should fatories should always have to be static or should they have member variables?
+3) How to use this?
+
+#!csharp
+
+public interface ITheme
+  {
+    string TextColor { get; }
+    string BgrColor { get; }
+  }
+
+  class LightTheme : ITheme
+  {
+    public string TextColor => "black";
+    public string BgrColor => "white";
+  }
+
+  class DarkTheme : ITheme
+  {
+    public string TextColor => "white";
+    public string BgrColor => "dark gray";
+  }
+
+  public class TrackingThemeFactory
+  {
+    private readonly List<WeakReference<ITheme>> themes = new();
+
+    public ITheme CreateTheme(bool dark)
+    {
+      ITheme theme = dark ? new DarkTheme() : new LightTheme();
+      themes.Add(new WeakReference<ITheme>(theme));
+      return theme;
+    }
+
+    public string Info
+    {
+      get
+      {
+        var sb = new StringBuilder();
+        foreach (var reference in themes)
+        {
+          if (reference.TryGetTarget(out var theme))
+          {
+            bool dark = theme is DarkTheme;
+            sb.Append(dark ? "Dark" : "Light")
+              .AppendLine(" theme");
+          }
+        }
+        return sb.ToString();
+      }
+    }
+  }
+
+  public class ReplaceableThemeFactory
+  {
+    // List of weak references to Ref<ITheme> objects, so we can update all created themes
+    private readonly List<WeakReference<Ref<ITheme>>> themes = new();
+
+    // Helper method to create a theme instance based on the dark flag
+    private ITheme createThemeImpl(bool dark)
+    {
+      return dark ? new DarkTheme() : new LightTheme();
+    }
+
+    // Creates a Ref<ITheme> and tracks it for future replacement
+    public Ref<ITheme> CreateTheme(bool dark)
+    {
+      var r = new Ref<ITheme>(createThemeImpl(dark));
+      themes.Add(new(r));
+      return r;
+    }
+
+    // Replaces the theme instance in all tracked Ref<ITheme> objects
+    public void ReplaceTheme(bool dark)
+    {
+      foreach (var wr in themes)
+      {
+        if (wr.TryGetTarget(out var reference))
+        {
+          reference.Value = createThemeImpl(dark);
+        }
+      }
+    }
+  }
+
+  public class Ref<T> where T : class
+  {
+    public T Value;
+
+    public Ref(T value)
+    {
+      Value = value;
+    }
+  }
+
+      var factory = new TrackingThemeFactory();
+      var theme = factory.CreateTheme(true);
+      var theme2 = factory.CreateTheme(false);
+      Console.WriteLine(factory.Info);
+      // Dark theme
+      // Light theme
+      
+      
+      // replacement
+      var factory2 = new ReplaceableThemeFactory();
+      var magicTheme = factory2.CreateTheme(true);
+      Console.WriteLine(magicTheme.Value.BgrColor); // dark gray
+      factory2.ReplaceTheme(false);
+      Console.WriteLine(magicTheme.Value.BgrColor); // white
+    
+
+#!csharp
+
+// Quiz
+using System;
+
+
+  public class Person
+  {
+    public int Id { get; set; }
+    public string Name { get; set; }
+  }
+  public class PersonFactory{
+      private static int counter=0;
+      public static Person CreatePerson(string name){
+          
+          return new Person { Id = ++PersonFactory.counter, Name = name };
+      }
+  }
+  WriteLine(PersonFactory.CreatePerson("a").Id);
+  WriteLine(PersonFactory.CreatePerson("b").Id);
